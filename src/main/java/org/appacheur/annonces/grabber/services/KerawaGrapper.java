@@ -24,6 +24,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.TextNode;
+import org.jsoup.select.Elements;
 
 /**
  *
@@ -52,11 +53,13 @@ public class KerawaGrapper extends AbstractGrapper {
     private void loadFile(List<Item> items, String page) {
 //        System.out.print(page);
         Document doc = Jsoup.parse(page);
-        Iterator<Element> elts = doc.select("#main .ad_list tr td.text").iterator();
+        Elements titleList = doc.select("#main table tr.normal td.text,#main table tr.premium td.text");
+        System.out.println(titleList.size() + " élements trouvés pour la page ");
+        int i = 0;
+        Iterator<Element> elts = titleList.iterator();
         for (Iterator<Element> iterator = elts; iterator.hasNext();) {
             try {
                 Element nxt = iterator.next();
-                System.out.print(nxt);
                 Element next = nxt.select("a").first();
                 Item item = new Item();
                 if (next != null) {
@@ -66,6 +69,9 @@ public class KerawaGrapper extends AbstractGrapper {
                     item.setSrcLink(next.attr("href"));
 //                item.setCatId(Integer.valueOf(mappping.getCategorie(nxt.select(".ctg a .categor u font").
 //                        first().text())));
+                    System.out.println(item.getTitle() + " - "+item.getSrcLink());
+                    i++;
+                    item.setId((long)i);
                     items.add(item);
                 }
             } catch (Exception ex) {
@@ -77,23 +83,24 @@ public class KerawaGrapper extends AbstractGrapper {
 
     public void loadFile(Item item, String page) {
         try {
+            System.out.println("chargement item "+item.getId());
             String page2 = page.replaceAll("[\\s]+", "");
             String ville = find("Lieu:<strong>(\\w+),Cameroun</strong>", page2);
             item.setLocalisation(mappping.getLocalisation(ville));
             Document doc = Jsoup.parse(page);
-            Element desc = doc.select("div#description").first();
-            if (doc.select("#description #user_menu .button.primary strong").first() != null) {
-                String prix = doc.select("#description #user_menu .button.primary strong").first().text().
+            Element desc = doc.select("#main").get(1);
+            if (doc.select("#main #user_menu .button.primary strong").first() != null) {
+                String prix = doc.select("#main #user_menu .button.primary strong").first().text().
                         replace("CFA", "").replace("Prix", "").replace(":", "").trim();
                 item.setPrix(prix.replace(".", ""));
             }
             if (desc.select("p").first() != null) {
                 item.setDescription(desc.select("p").first().html());
             }
-            desc = doc.select("div#item_head h1 center strong").first();
-            if (desc != null) {
-                item.setTitle(desc.text());
-            }
+//            desc = doc.select("div#item_head h1 center strong").first();
+//            if (desc != null) {
+//                item.setTitle(desc.text());
+//            }
             if (doc.select(".content.item .block.bread a").last() != null) {
                 item.setCatId(Integer.valueOf(mappping.getCategorie(doc.select(".content.item .block.bread a").last().text())));
             }
@@ -122,11 +129,11 @@ public class KerawaGrapper extends AbstractGrapper {
                     item.setAdresse(adresse);
                 }
             }
-            it = doc.select("#description #photos div img").listIterator();
+            it = doc.select("#description .carousel-inner img").listIterator();
             List<ItemImage> images = new ArrayList<ItemImage>();
             for (ListIterator<Element> iterator = it; iterator.hasNext();) {
                 Element next = iterator.next();
-                String img = next.attr("src");
+                String img = next.attr("data-lazy-load-src");
                 ItemImage image = new ItemImage();
                 image.setSrc(img.replace("_thumbnail", ""));
                 images.add(image);
@@ -134,7 +141,7 @@ public class KerawaGrapper extends AbstractGrapper {
             }
             item.setImages(images);
             List<FieldValue> values = new ArrayList<FieldValue>();
-            it = doc.select("#description #custom_fields .meta_list .meta").listIterator();
+            it = doc.select("#main #custom_fields .meta_list .meta").listIterator();
             for (ListIterator<Element> iterator = it; iterator.hasNext();) {
                 FieldValue value = new FieldValue();
                 Element next = iterator.next();

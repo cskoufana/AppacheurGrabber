@@ -8,11 +8,8 @@ package org.appacheur.annonces.grabber.network;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +27,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
@@ -43,7 +39,6 @@ import org.appacheur.annonces.grabber.Grabber;
 import org.appacheur.annonces.grabber.entites.FieldValue;
 import org.appacheur.annonces.grabber.entites.Item;
 import org.appacheur.annonces.grabber.entites.ItemImage;
-import org.appacheur.annonces.grabber.services.KerawaGrapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -215,9 +210,9 @@ public class GrapperClient {
                 response.close();
             }
         } catch (UnsupportedEncodingException ex) {
-            Logger.getLogger(GrapperClient.class.getName()).log(Level.SEVERE, ex.getMessage());
+            Logger.getLogger(GrapperClient.class.getName()).log(Level.SEVERE, ex.getMessage(),ex);
         } catch (IOException ex) {
-            Logger.getLogger(GrapperClient.class.getName()).log(Level.SEVERE, ex.getMessage());
+            Logger.getLogger(GrapperClient.class.getName()).log(Level.SEVERE, ex.getMessage(),ex);
         }
         return page;
     }
@@ -231,8 +226,7 @@ public class GrapperClient {
 
     public void populateImages(Item item) {
         List<ItemImage> images = item.getImages();
-        for (int i = 0; i < images.size(); i++) {
-            ItemImage image = images.get(i);
+        for (ItemImage image : images) {
             if (!populateImage(image)) {
                 item.getImages().remove(image);
             }
