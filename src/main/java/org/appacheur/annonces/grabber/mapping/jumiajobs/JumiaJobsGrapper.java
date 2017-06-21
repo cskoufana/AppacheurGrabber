@@ -3,15 +3,15 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.appacheur.annonces.grabber.services;
+package org.appacheur.annonces.grabber.mapping.jumiajobs;
 
-import java.io.IOException;
+import org.appacheur.annonces.grabber.services.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 import org.appacheur.annonces.grabber.entites.FieldValue;
 import org.appacheur.annonces.grabber.entites.Item;
 import org.appacheur.annonces.grabber.entites.ItemImage;
-import org.appacheur.annonces.grabber.mapping.kerawa.KerawaMapping;
 import org.appacheur.annonces.grabber.network.GrapperClient;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -29,12 +28,11 @@ import org.jsoup.select.Elements;
 
 /**
  *
- * @author probook
+ * @author Koufana Crepin Sosthene
  */
-public class KerawaGrapper extends AbstractGrapper {
+public class JumiaJobsGrapper extends AbstractGrapper {
 
-    private final KerawaMapping mappping = new KerawaMapping();
-            
+    private final JumiaJobsMapping mappping = new JumiaJobsMapping();
 
     @Override
     public List<Item> getItemsList(String page) {
@@ -55,14 +53,14 @@ public class KerawaGrapper extends AbstractGrapper {
     private void loadFile(List<Item> items, String page) {
 //        System.out.print(page);
         Document doc = Jsoup.parse(page);
-        Elements titleList = doc.select("#main table tr.normal td.text,#main table tr.premium td.text");
+        Elements titleList = doc.select("#job-search-content .content-wrapper .tab-content #professionals p.headline3 a");
         System.out.println(titleList.size() + " élements trouvés pour la page ");
         int i = 0;
         Iterator<Element> elts = titleList.iterator();
         for (Iterator<Element> iterator = elts; iterator.hasNext();) {
             try {
                 Element nxt = iterator.next();
-                Element next = nxt.select("a").first();
+                Element next = nxt;
                 Item item = new Item();
                 if (next != null) {
                     if (next.text() != null) {
@@ -87,73 +85,44 @@ public class KerawaGrapper extends AbstractGrapper {
         try {
             System.out.println("chargement item "+item.getId());
             String page2 = page.replaceAll("[\\s]+", "");
-            String ville = find("Lieu:<strong>(\\w+),Cameroun</strong>", page2);
-            item.setLocalisation(mappping.getLocalisation(ville));
             Document doc = Jsoup.parse(page);
-            Element desc = doc.select("#main").get(1);
-            if (doc.select("#main #user_menu .button.primary strong").first() != null) {
-                String prix = doc.select("#main #user_menu .button.primary strong").first().text().
-                        replace("CFA", "").replace("Prix", "").replace(":", "").trim();
-                item.setPrix(prix.replace(".", ""));
-            }
+            Elements elts = doc.select(".row .jobs-details-section div dl dd");
+            String ville = elts.get(1).text().trim();
+            item.setLocalisation(mappping.getLocalisation(ville));
+            Element desc = doc.select("#job-details-section").get(2);
+            
             if (desc.select("p").first() != null) {
-                item.setDescription(desc.select("p").first().html());
+                item.setDescription(desc.select(".dl-horizontal").first().html());
             }
-//            desc = doc.select("div#item_head h1 center strong").first();
-//            if (desc != null) {
-//                item.setTitle(desc.text());
-//            }
-            if (doc.select(".content.item .block.bread a").last() != null) {
-                item.setCatId(Integer.valueOf(mappping.getCategorie(doc.select(".content.item .block.bread a").last().text())));
-            }
-            Iterator<Element> phoneIterator = doc.select("div#phone #custom_fields .meta").iterator();
-            for (Iterator<Element> iterator = phoneIterator; iterator.hasNext();) {
-                Element next = iterator.next();
-                if (item.getTelephone1() == null) {
-                    item.setTelephone1(getPhoneNumber(next));
-                } else {
-                    item.setTelephone2(getPhoneNumber(next));
-                }
-            }
-            if (doc.select("#contact .name a").first() != null) {
-                item.setName(getText(doc.select("#contact .name a").first()));
+            item.setCatId(Integer.valueOf(mappping.getCategorie(elts.get(7).text().trim())));
+            
+            if (doc.select("#job-header .row h4 a").first() != null) {
+                item.setName(getText(doc.select("#job-header .row h4 a").first()));
             }
             try {
-                item.setDate(new SimpleDateFormat("yyyy/MM/dd").parse(getText(doc.select("#type_dates .publish").first()).split(":")[1].trim()));
+                item.setDate(new SimpleDateFormat("dd MMMMM yyyy",Locale.ENGLISH).parse(getText(doc.select("#job-date strong").first())));
             } catch (Exception ex) {
-                item.setDate(new Date());
-                Logger.getLogger(KerawaGrapper.class.getName()).log(Level.WARNING, ex.getMessage());
+                Logger.getLogger(JumiaJobsGrapper.class.getName()).log(Level.WARNING, ex.getMessage());
             }
-            ListIterator<Element> it = doc.select("#sidebar #item_location li").listIterator();
-            for (ListIterator<Element> iterator = it; iterator.hasNext();) {
-                Element next = iterator.next();
-                if (next.text().contains("Adresse")) {
-                    String adresse = next.select("strong").text();
-                    item.setAdresse(adresse);
-                }
-            }
-            it = doc.select("#description .carousel-inner img").listIterator();
+            
+            ListIterator<Element> it = doc.select("#job-header img.img").listIterator();
             List<ItemImage> images = new ArrayList<ItemImage>();
             for (ListIterator<Element> iterator = it; iterator.hasNext();) {
                 Element next = iterator.next();
-                String img = next.attr("data-lazy-load-src");
+                String img = next.attr("src");
                 ItemImage image = new ItemImage();
-                image.setSrc(img.replace("_thumbnail", ""));
+                image.setSrc(img.trim());
                 images.add(image);
 
             }
             item.setImages(images);
             List<FieldValue> values = new ArrayList<FieldValue>();
-            it = doc.select("#main #custom_fields .meta_list .meta").listIterator();
-            for (ListIterator<Element> iterator = it; iterator.hasNext();) {
-                FieldValue value = new FieldValue();
-                Element next = iterator.next();
-                String field = next.select("strong").text();
-                String fieldvalue = getText(next);
-                value.setField(mappping.getExtraField(field.replace(":", "").trim()));
-                value.setValue(fieldvalue);
-                values.add(value);
-            }
+            FieldValue value = new FieldValue();
+            value.setField("contract_type");
+            value.setValue(elts.get(5).text().trim());
+            
+            values.add(value);
+                
             item.setExtraValue(values);
         } catch (Exception ex) {
             Logger.getLogger(GrapperClient.class.getName()).log(Level.SEVERE, ex.getMessage(), ex);

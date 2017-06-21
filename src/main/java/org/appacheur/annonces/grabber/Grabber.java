@@ -61,7 +61,7 @@ public class Grabber {
         GrapperClient client = new GrapperClient();
         client.connexion();
         KerawaGrapper grapper = new KerawaGrapper();
-        for (int i = 100; i >= 1; i--) {
+        for (int i = 10; i >= 1; i--) {
             List<Item> items = grapper.getItemsList(client.getHttpPage(URL + "/" + i));
             AppacheurListTask itemtask = new AppacheurListTask(grapper,client,i);
             itemtask.init(items);
